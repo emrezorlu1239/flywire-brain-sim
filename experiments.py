@@ -27,7 +27,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from flybrain.data import load_connectome
+from flybrain.data import _fetch, load_connectome
 from flybrain.model import BrainSimulator, LIFParams, Stimulus
 from flybrain.neurons import BITTER_GRNS, MN9_LEFT, SUGAR_GRNS
 
@@ -45,7 +45,7 @@ def mn9_stats(res, mn9):
 def validation(c):
     ref_path = Path("data/brian2_reference_sugar200.parquet")
     if not ref_path.exists():
-        urllib.request.urlretrieve(REF_URL, ref_path)
+        _fetch(REF_URL, ref_path)
     ref = pd.read_parquet(ref_path)
     n_ref = ref["trial"].nunique()
     theirs = (ref.groupby("flywire_id").size() / n_ref).reindex(c.flywire_ids).fillna(0)

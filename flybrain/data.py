@@ -44,6 +44,29 @@ DATASETS = {
 }
 
 
+def _fetch(url: str, path: Path, attempts: int = 3) -> None:
+    """Download to a temporary file, check the size, then move it into place.
+
+    A half-finished download never ends up under the real name, so an interrupted
+    first run cannot leave a corrupt file behind.
+    """
+    tmp = path.with_suffix(path.suffix + ".part")
+    for attempt in range(1, attempts + 1):
+        try:
+            with urllib.request.urlopen(url) as r, open(tmp, "wb") as f:
+                expected = int(r.headers.get("Content-Length") or 0)
+                while chunk := r.read(1 << 20):
+                    f.write(chunk)
+            if expected and tmp.stat().st_size != expected:
+                raise IOError(f"got {tmp.stat().st_size:,} of {expected:,} bytes")
+            tmp.replace(path)
+            return
+        except Exception as e:  # network hiccup -> try again
+            print(f"  download attempt {attempt} failed: {e}")
+            tmp.unlink(missing_ok=True)
+    raise RuntimeError(f"Could not download {url}")
+
+
 def download(data_dir: str | Path = "data", version: str = "630") -> dict[str, Path]:
     """Download the connectome files (~90 MB) if they are not already present."""
     data_dir = Path(data_dir)
@@ -53,7 +76,7 @@ def download(data_dir: str | Path = "data", version: str = "630") -> dict[str, P
         path = data_dir / name
         if not path.exists():
             print(f"Downloading {name} ...")
-            urllib.request.urlretrieve(BASE_URL + name, path)
+            _fetch(BASE_URL + name, path)
         paths[kind] = path
     return paths
 
