@@ -1,5 +1,15 @@
 # FlyWire Brain Sim
 
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
+![CUDA](https://img.shields.io/badge/CUDA-optional-76B900?style=for-the-badge&logo=nvidia&logoColor=white)
+![NumPy](https://img.shields.io/badge/NumPy-013243?style=for-the-badge&logo=numpy&logoColor=white)
+![Pandas](https://img.shields.io/badge/Pandas-150458?style=for-the-badge&logo=pandas&logoColor=white)
+![Matplotlib](https://img.shields.io/badge/Matplotlib-11557C?style=for-the-badge)
+![Connectome](https://img.shields.io/badge/Data-FlyWire%20connectome-6250D6?style=for-the-badge)
+![Neurons](https://img.shields.io/badge/Neurons-127%2C400-2A78D6?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
+
 **A spiking simulation of the entire fruit fly brain — 127,400 neurons and 14.7 million connections — in PyTorch.**
 
 Every neuron and synapse comes from the [FlyWire](https://flywire.ai) connectome, the first complete wiring diagram of an adult brain. Nothing is trained: each neuron is the same simple leaky integrate-and-fire unit, and the behaviour below emerges from the wiring alone. Switch on the fly's sugar-sensing neurons and, a few synapses later, the motor neuron that extends its proboscis ("tongue") starts firing.
