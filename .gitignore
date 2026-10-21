@@ -1,0 +1,13 @@
+# connectome data is downloaded on first run (~90 MB)
+data/
+
+# playground output
+results/playground/
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+.DS_Store
