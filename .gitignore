@@ -1,5 +1,5 @@
 # connectome data is downloaded on first run (~90 MB)
-data/
+/data/
 
 # playground output
 results/playground/
