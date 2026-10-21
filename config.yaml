@@ -1,0 +1,42 @@
+# ---------------------------------------------------------------------------
+# Playground config for run.py - change values here and run:  python run.py
+# You can also override any value from the command line:
+#     python run.py --set stimulate.sugar=150 --set neuron.v_threshold=-46
+# ---------------------------------------------------------------------------
+
+simulation:
+  duration_ms: 1000      # length of one trial
+  n_trials: 10           # independent random trials (more = smoother averages, slower)
+  seed: 0                # random seed (null = different every run)
+  device: auto           # auto | cpu | cuda
+
+# Which neurons to drive and how hard (Hz). Groups are defined in flybrain/neurons.py:
+#   sugar, bitter, water, ir94e (low salt).  0 = off.
+# For your own neurons add e.g.   my_group: {ids: [720575940660219265], hz: 100}
+stimulate:
+  sugar: 100
+  bitter: 0
+  water: 0
+  ir94e: 0
+
+# FlyWire IDs of neurons to silence (all their outgoing synapses are removed).
+silence: []
+
+# Neurons whose firing rate is always reported.
+readout: [MN9_left, MN9_right]
+
+# Leaky integrate-and-fire constants. These are the published values (Shiu et al. 2024).
+neuron:
+  v_rest: -52.0          # mV  resting potential
+  v_reset: -52.0         # mV  voltage after a spike
+  v_threshold: -45.0     # mV  spike threshold  (try -46 or -44)
+  tau_m: 20.0            # ms  membrane time constant (how fast voltage leaks)
+  tau_syn: 5.0           # ms  synaptic time constant (how long one input lasts)
+  refractory_ms: 2.2     # ms  silent period after a spike
+  delay_ms: 1.8          # ms  synaptic delay
+  weight_mV: 0.275       # mV  effect of ONE synapse - the only fitted parameter (try 0.2 / 0.35)
+
+output:
+  top_n: 20              # how many of the most active neurons to print
+  save_dir: results/playground
+  plot: true
