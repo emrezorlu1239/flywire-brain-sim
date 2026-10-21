@@ -232,7 +232,7 @@ class BrainSimulator:
                 rec_trials.append(b_idx)
                 rec_neurons.append(n_idx)
 
-            if verbose and t and t % (n_steps // 10) == 0:
+            if verbose and t and t % max(1, n_steps // 10) == 0:
                 print(f"  {100 * t // n_steps:3d}%  ({time.time() - t0:.1f}s)")
 
         cat = (lambda xs: torch.cat(xs).cpu().numpy()) if rec_steps else (

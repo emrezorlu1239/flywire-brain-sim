@@ -12,6 +12,7 @@ activity spread, then saves the rates (CSV) and a raster plot to output.save_dir
 from __future__ import annotations
 
 import argparse
+import difflib
 from dataclasses import fields
 from pathlib import Path
 
@@ -23,6 +24,31 @@ import yaml
 from flybrain.data import load_connectome
 from flybrain.model import BrainSimulator, LIFParams, Stimulus
 from flybrain.neurons import GROUPS, READOUTS
+
+
+ALLOWED = {
+    "simulation": {"duration_ms", "n_trials", "seed", "device"},
+    "stimulate": None,   # group names, checked in build_stimuli
+    "silence": None,
+    "readout": None,
+    "neuron": {f.name for f in fields(LIFParams)} - {"duration_ms", "n_trials"},
+    "output": {"top_n", "save_dir", "plot"},
+}
+
+
+def validate(cfg: dict) -> None:
+    """Fail loudly on misspelled keys instead of silently ignoring them."""
+    def check(name, allowed, where):
+        if name not in allowed:
+            hint = difflib.get_close_matches(name, allowed, n=1)
+            tip = f" Did you mean '{hint[0]}'?" if hint else f" Allowed: {sorted(allowed)}"
+            raise SystemExit(f"Unknown config key '{where}{name}'.{tip}")
+
+    for section, value in cfg.items():
+        check(section, ALLOWED, "")
+        if ALLOWED[section] and isinstance(value, dict):
+            for key in value:
+                check(key, ALLOWED[section], f"{section}.")
 
 
 def apply_overrides(cfg: dict, overrides: list[str]) -> dict:
@@ -56,14 +82,15 @@ def main():
     ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
                     help="override a config value, e.g. stimulate.sugar=150")
     args = ap.parse_args()
-    cfg = apply_overrides(yaml.safe_load(open(args.config)), args.set)
+    with open(args.config, encoding="utf-8") as f:
+        cfg = apply_overrides(yaml.safe_load(f), args.set)
+    validate(cfg)
 
     sim_cfg = cfg["simulation"]
     device = sim_cfg.get("device", "auto")
     if device == "auto":
         device = "cuda" if torch.cuda.is_available() else "cpu"
-    known = {f.name for f in fields(LIFParams)}
-    params = LIFParams(**{k: v for k, v in (cfg.get("neuron") or {}).items() if k in known},
+    params = LIFParams(**{k: float(v) for k, v in (cfg.get("neuron") or {}).items()},
                        duration_ms=float(sim_cfg["duration_ms"]), n_trials=int(sim_cfg["n_trials"]))
 
     print("Loading connectome ...")
@@ -91,18 +118,27 @@ def main():
     for name, fid in readout.items():
         i = c.index_of([fid])[0]
         per_trial = res.rates_per_trial([i])[:, 0]
-        sem = per_trial.std(ddof=1) / np.sqrt(len(per_trial)) if len(per_trial) > 1 else 0.0
-        print(f"  {name:<12} {per_trial.mean():7.1f} Hz  (± {sem:.1f} SEM)")
+        if len(per_trial) > 1:
+            sem = per_trial.std(ddof=1) / np.sqrt(len(per_trial))
+            spread = f"(± {sem:.1f} SEM)"
+        else:
+            spread = "(SEM n/a: run more than 1 trial)"
+        print(f"  {name:<12} {per_trial.mean():7.1f} Hz  {spread}")
 
     top_n = cfg.get("output", {}).get("top_n", 20)
+    silenced = set(silence)
     order = [i for i in np.argsort(-rates) if rates[i] > 0 and i not in stim_idx][:top_n]
     table = pd.DataFrame({
         "flywire_id": c.flywire_ids[order],
         "rate_hz": rates[order].round(1),
         "type": ["excitatory" if c.sign[i] > 0 else "inhibitory" for i in order],
+        "note": ["SILENCED" if i in silenced else "" for i in order],
     })
     print(f"\nTop {len(order)} responding (non-stimulated) neurons:")
     print(table.to_string(index=False))
+    if silenced & set(order):
+        print("  SILENCED = its outgoing synapses are cut. It still receives input and fires,\n"
+              "  but its spikes reach no other neuron (like optogenetic silencing of release).")
 
     out = Path(cfg.get("output", {}).get("save_dir", "results/playground"))
     out.mkdir(parents=True, exist_ok=True)

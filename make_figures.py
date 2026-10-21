@@ -315,7 +315,7 @@ def gif_propagation(spikes, trials, nodes, xy, edges, sign, t_max=150.0, step=2.
         return []
 
     anim = FuncAnimation(fig, update, frames=list(range(frames)) + [frames - 1] * 15, blit=False)
-    anim.save(FIG / "propagation.gif", writer=PillowWriter(fps=12))
+    anim.save(FIG / "propagation.gif", writer=PillowWriter(fps=12), dpi=100)
     plt.close(fig)
 
 

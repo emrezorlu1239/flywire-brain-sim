@@ -16,7 +16,7 @@ Every neuron and synapse comes from the [FlyWire](https://flywire.ai) connectome
 
 ![Activity spreading from sugar neurons to the feeding motor neuron](results/figures/propagation.gif)
 
-This is a from-scratch PyTorch re-implementation of the model by [Shiu et al. (2024, *Nature*)](https://www.nature.com/articles/s41586-024-07763-9). It reproduces their published Brian2 results almost exactly (r = 0.9999 across all active neurons), runs several trials in parallel as a batch, and can use a GPU.
+This is a from-scratch PyTorch re-implementation of the model by [Shiu et al. (2024, *Nature*)](https://www.nature.com/articles/s41586-024-07763-9). It reproduces their published Brian2 results almost exactly (r = 0.9999 over every responding, non-stimulated neuron), runs several trials in parallel as a batch, and runs on CPU or GPU.
 
 ## Results
 
@@ -38,17 +38,17 @@ MN9 rises with sugar input, and adding bitter input pushes it back down — the 
 
 <img src="results/figures/silencing.png" width="640">
 
-Each of the 30 most active interneurons was silenced on its own while the sugar neurons fired at 100 Hz; the chart shows the 14 largest effects. None of them is essential: removing a single excitatory neuron lowers MN9 by at most 16 %, so the sugar signal reaches the motor neuron through many parallel paths. The strongest effect goes the other way: silencing one inhibitory neuron (`720575940615041430`) raises MN9 by **36 %** — it acts as a brake on the feeding command. Try it yourself with the `--set "silence=[...]"` example below.
+Each of the 30 most active interneurons was silenced on its own (its outgoing synapses removed) while the sugar neurons fired at 100 Hz; the chart shows the 14 largest effects. None of them is essential: removing a single excitatory neuron lowers MN9 by at most 16 %, so the sugar signal reaches the motor neuron through many parallel paths. The strongest effect goes the other way: silencing one inhibitory neuron (`720575940615041430`) raises MN9 by **36 %** — it acts as a brake on the feeding command. Try it yourself with the `--set "silence=[...]"` example below.
 
 ### 4. How the signal travels
 
 <img src="results/figures/raster.png" width="640">
 
-One trial, first 300 ms. Sugar neurons (orange) fire from the start; downstream neurons join in order of their distance from the input. MN9 is only **2 synapses** away from the sugar neurons (3 if we count only connections with ≥ 5 synapses) and typically fires its first spike about **31 ms** after the stimulus starts.
+One trial, first 300 ms. Sugar neurons (orange) fire from the start; downstream neurons join in order of their distance from the input. (Single trials show wave-like bursts; averaged over 30 trials there is no clear rhythm.) MN9 is only **2 synapses** away from the sugar neurons (3 if we count only connections with ≥ 5 synapses) and typically fires its first spike about **31 ms** after the stimulus starts.
 
 <img src="results/figures/network.png" width="760">
 
-The 40 most active neurons, placed left to right by when they respond. Each neuron is connected to its two strongest inputs, colour shows whether a neuron excites (orange) or inhibits (blue) its targets.
+The 40 most active neurons, placed left to right by when they respond; colour shows whether a neuron excites (orange) or inhibits (blue) its targets. For readability each neuron is drawn with only its two strongest inputs (MN9 with four) — in reality MN9 receives input over many parallel paths, which is why silencing any single neuron barely matters.
 
 ## Quick start
 
@@ -59,6 +59,10 @@ pip install -r requirements.txt
 
 python run.py                 # first run downloads the connectome (~90 MB)
 ```
+
+> **NVIDIA GPU:** `pip install -r requirements.txt` may install a CPU-only PyTorch (always the case on Windows). For CUDA, install PyTorch first with the command from [pytorch.org](https://pytorch.org/get-started/locally/), e.g. `pip install torch --index-url https://download.pytorch.org/whl/cu128`.
+>
+> **Windows:** if `python` says `No module named 'numpy'` although `pip` installed it, `python` points to a different interpreter than `pip`. Use `py -3.11 run.py` (your version) or `python -m pip install ...` with the same `python`.
 
 `run.py` reads [`config.yaml`](config.yaml): which neurons to stimulate and how hard, which to silence, and the neuron constants. It prints the read-out neurons and the most active neurons, and saves a CSV and a raster plot to `results/playground/`. Any value can be overridden from the command line:
 
@@ -71,10 +75,14 @@ python run.py --set "silence=[720575940615041430]"    # knock out one neuron
 Reproduce everything in this README:
 
 ```bash
-python experiments.py     # ~25 min on a 2-core laptop CPU, much faster on a GPU
+python experiments.py     # ~25 min on a 2-core CPU
 python make_figures.py
-pytest -q                 # small hand-built networks, no download needed
+python -m pytest -q       # tiny hand-built networks + config checks, no download needed
 ```
+
+Misspelled settings are rejected (`--set neuron.v_treshold=-40` → *Did you mean 'v_threshold'?*), so a typo can never silently run the default model.
+
+**CPU or GPU?** Each simulated millisecond is 10 sequential steps that each touch only a few hundred spiking neurons, so a GPU spends most of its time on per-step overhead. Measured on an RTX 5060 laptop: with 10 trials the CPU was faster (20 s vs. 30 s); with 60 trials the GPU took the same 31 s, while CPU time grows with the number of trials. Rule of thumb: few trials → `simulation.device=cpu`, many trials → `cuda`.
 
 ## How it works
 
@@ -110,7 +118,7 @@ flybrain/
 run.py           playground driven by config.yaml
 experiments.py   the four experiments behind this README
 make_figures.py  figures and animation from the saved results
-tests/           sanity checks on tiny hand-made networks
+tests/           sanity checks on tiny hand-made networks + config validation
 results/         saved data (CSV / parquet) and figures
 ```
 
